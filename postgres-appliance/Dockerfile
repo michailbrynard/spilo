@@ -131,17 +131,17 @@ ENV PATH=$PATH:/usr/lib/postgresql/${PGVERSION}/bin
 ENV PATRONIVERSION=1.3
 ENV WALE_VERSION=1.1.0b1
 RUN export DEBIAN_FRONTEND=noninteractive \
-    export BUILD_PACKAGES="python3-pip python3-dev git patch gcc linux-headers-generic-lts-xenial" \
+    export BUILD_PACKAGES="python3-pip python3-dev gcc patch" \
     && apt-get update \
     && apt-get install -y \
             # Required for wal-e
             daemontools lzop \
             # Required for /usr/local/bin/patroni
-            python3 python3-setuptools python3-pystache python3-prettytable python3-six \
+            python3 python3-pystache python3-prettytable python3-six \
             ${BUILD_PACKAGES} \
 
-    && pip3 install pip --upgrade \
-    && pip3 install --upgrade 'git+https://github.com/zalando/patroni.git@d5b3d943779ebec31dc65c54c897e34d83878ea0#egg=patroni' \
+    && pip3 install setuptools pip --upgrade \
+    && pip3 install --upgrade patroni==$PATRONIVERSION \
             gcloud boto wal-e==$WALE_VERSION \
 
     # https://github.com/wal-e/wal-e/issues/318
