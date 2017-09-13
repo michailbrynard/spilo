@@ -152,6 +152,7 @@ restapi:
   listen: 0.0.0.0:{{APIPORT}}
   connect_address: {{instance_data.ip}}:{{APIPORT}}
 postgresql:
+  use_unix_socket: true
   name: '{{instance_data.id}}'
   scope: *scope
   listen: 0.0.0.0:{{PGPORT}}
@@ -177,10 +178,10 @@ postgresql:
   {{/USE_WALE}}
   authentication:
     superuser:
-      username: postgres
+      username: {{PGUSER_SUPERUSER}}
       password: '{{PGPASSWORD_SUPERUSER}}'
     replication:
-      username: standby
+      username: {{PGUSER_STANDBY}}
       password: '{{PGPASSWORD_STANDBY}}'
  {{#CALLBACK_SCRIPT}}
   callbacks:
@@ -265,7 +266,9 @@ def get_placeholders(provider):
     placeholders.setdefault('PGROOT', os.path.join(placeholders['PGHOME'], 'pgroot'))
     placeholders.setdefault('WALE_TMPDIR', os.path.abspath(os.path.join(placeholders['PGROOT'], '../tmp')))
     placeholders.setdefault('PGDATA', os.path.join(placeholders['PGROOT'], 'pgdata'))
+    placeholders.setdefault('PGUSER_STANDBY', 'standby')
     placeholders.setdefault('PGPASSWORD_STANDBY', 'standby')
+    placeholders.setdefault('PGUSER_SUPERUSER', 'postgres')
     placeholders.setdefault('PGPASSWORD_SUPERUSER', 'zalando')
     placeholders.setdefault('PGPORT', '5432')
     placeholders.setdefault('SCOPE', 'dummy')
@@ -483,7 +486,7 @@ user=postgres
 autostart=1
 priority=500
 directory=/
-command=env -i /usr/sbin/pgbouncer -d /etc/pgbouncer/pgbouncer.ini
+command=env -i /usr/sbin/pgbouncer /etc/pgbouncer/pgbouncer.ini
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 redirect_stderr=true
