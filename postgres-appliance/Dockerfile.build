@@ -10,8 +10,6 @@ RUN set -ex \
         && echo usr/bin/xz >> /exclude \
         && for d in $(cat /saveDirs); do find $d -not -type d >> /exclude; done \
 
-        && mkdir /usr/src \
-
         && apk add --no-cache --virtual .spilo-rundeps \
                 ca-certificates \
                 openssl \
@@ -25,12 +23,12 @@ RUN set -ex \
                 linux-headers \
                 libtool \
                 autoconf \
-                automake
+                automake \
 #        && apk add --no-cache g++ \
 #
 #        && NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) \
 #
-#        && mkdir /usr/src \
+        && mkdir /usr/src \
 #        && cd /usr/src \
 #        && wget -q -O - http://download.osgeo.org/proj/proj-${PROJ}.tar.gz | tar xz \
 #        && cd proj-${PROJ} \
@@ -60,7 +58,7 @@ RUN set -ex \
 #        && cp -a /tmp/gdal/usr/local/lib /tmp/gdal/usr/local/include /usr/local/ \
 #        && cp -a /tmp/gdal/usr/local/bin/gdal-config  /usr/local/bin \
 #        && apk del --no-cache g++ \
-#        && rm -fr /tmp/* /usr/src/* /usr/share/terminfo /usr/lib/terminfo /usr/local/share/doc /usr/local/share/man
+        && rm -fr /tmp/* /usr/src/* /usr/share/terminfo /usr/lib/terminfo
 
 ENV PAM_OAUTH_COMMIT=bed1f8d31840d1fda49365921449112a7421b8ca JSMN_COMMIT=1682c32e9ae5990ddd0f0e907270a0f6dde5cbe9
 RUN set -ex \
