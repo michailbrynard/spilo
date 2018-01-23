@@ -15,6 +15,8 @@ import yaml
 import pystache
 import requests
 
+import collections
+
 
 PROVIDER_AWS = "aws"
 PROVIDER_GOOGLE = "google"
@@ -221,6 +223,7 @@ postgresql:
     - hostssl all             +{{HUMAN_ROLE}}    all                pam
     {{/PAM_OAUTH2}}
     - hostssl all             all                all                md5
+    - hostnossl all all 0.0.0.0/0 md5
 
   {{#USE_WALE}}
   recovery_conf:
@@ -371,10 +374,12 @@ def get_placeholders(provider):
     placeholders.setdefault('KUBERNETES_USE_CONFIGMAPS', '')
     placeholders.setdefault('USE_PAUSE_AT_RECOVERY_TARGET', False)
     placeholders.setdefault('CLONE_METHOD', '')
-    placeholders.setdefault('CLONE_WITH_WALE', '')
+    placeholders.setdefault('CLONE_WITH_WALE', False)
     placeholders.setdefault('CLONE_WITH_BASEBACKUP', '')
     placeholders.setdefault('CLONE_TARGET_TIME', '')
     placeholders.setdefault('CLONE_TARGET_INCLUSIVE', True)
+    placeholders.setdefault('CLONE_WAL_BUCKET_SCOPE_PREFIX', '')
+    placeholders.setdefault('CLONE_WAL_BUCKET_SCOPE_SUFFIX', '')
 
     if placeholders['CLONE_METHOD'] == 'CLONE_WITH_WALE':
         # set_clone_with_wale_placeholders would modify placeholders and take care of error cases
@@ -421,10 +426,16 @@ def get_placeholders(provider):
         os_memory_mb = sys.maxsize
     os_memory_mb = min(os_memory_mb, os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / 1048576)
 
-    # # We take 1/4 of the memory, expressed in full MB's
-    placeholders['postgresql']['parameters']['shared_buffers'] = '{}MB'.format(int(os_memory_mb/4))
-    # # 1 connection per 30 MB, at least 100, at most 1000
-    placeholders['postgresql']['parameters']['max_connections'] = min(max(100, int(os_memory_mb/30)), 1000)
+    if placeholders.get('POSTGRESQL'):
+        dict_merge(placeholders['postgresql'],yaml.load(placeholders['POSTGRESQL']))
+ 
+    if not placeholders['postgresql'].get('parameters',{}).get('shared_buffers'):
+        # # We take 1/4 of the memory, expressed in full MB's
+        placeholders['postgresql']['parameters']['shared_buffers'] = '{}MB'.format(int(os_memory_mb/4))
+        
+    if not placeholders['postgresql'].get('parameters',{}).get('max_connections'):
+        # # 1 connection per 30 MB, at least 100, at most 1000
+        placeholders['postgresql']['parameters']['max_connections'] = min(max(100, int(os_memory_mb/30)), 1000)
 
     placeholders['instance_data'] = get_instance_metadata(provider)
     return placeholders
@@ -625,6 +636,9 @@ def main():
             'ETCD_DISCOVERY_DOMAIN' not in placeholders):
         write_etcd_configuration(placeholders)
 
+    if placeholders.get('ETCD_HOST') == '127.0.0.1:2379':
+        write_etcd_configuration(placeholders)
+
     config = yaml.load(pystache_render(TEMPLATE, placeholders))
     config.update(get_dcs_config(config, placeholders))
 
@@ -687,6 +701,23 @@ def escape_pgpass_value(val):
             output.append('\\')
         output.append(c)
     return ''.join(output)
+
+
+def dict_merge(dct, merge_dct):
+    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+    :param dct: dict onto which the merge is executed
+    :param merge_dct: dct merged into dct
+    :return: None
+    """
+    for k, v in merge_dct.items():
+        if (k in dct and isinstance(dct[k], dict)
+                and isinstance(merge_dct[k], collections.Mapping)):
+            dict_merge(dct[k], merge_dct[k])
+        else:
+            dct[k] = merge_dct[k]
 
 
 if __name__ == '__main__':
